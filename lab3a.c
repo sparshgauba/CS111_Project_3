@@ -63,9 +63,33 @@ void group_output()
   return;
 }
 
+int is_block_set(char byte, int index)
+{
+  switch(index)
+    {
+    case 0:
+      return (byte & 128) >> 7;
+    case 1:
+      return (byte & 64) >> 6;
+    case 2:
+      return (byte & 32) >> 5;
+    case 3:
+      return (byte & 16) >> 4;
+    case 4:
+      return (byte & 8) >> 3;
+    case 5:
+      return (byte & 4) >> 2;
+    case 6:
+      return (byte & 2) >> 1;
+    case 7:
+      return (byte & 1);
+    }
+  return -1;
+}
+
 int main(int argc, char **argv)
 {
-
+  int i;
   char *file = argv[1];
   int fd = open(file, O_RDONLY, 0444);
   if(fd == -1)
@@ -87,9 +111,34 @@ int main(int argc, char **argv)
   
   groupdescriptor_ptr = (block_group_descriptor_t*) blockgroup_read;
 
-  /*Get the block number where the bitmap is*/
+  /*Print the info about the block groups somewhere here?*/
 
-  printf("The bitmap is at block %X\n", groupdescriptor_ptr->bg_block_bitmap);
+  
+  /*Get the block number where the bitmap is*/
+  char bitmap[1024];
+  if(pread(fd, bitmap, 1024, 3072) == -1)
+    exit_1("");
+
+
+  for(i = 0; i < 1023; i++)
+  {
+    /*Cycle through each of the bits in a given byte*/
+    int j;
+    for(j = 0; j < 8; j++)
+      {
+	
+	if(is_block_set(bitmap[i], j) == 0)
+	  {
+	    int block = i * 8 + j;
+	    printf("BFREE,%d\n", block);
+	    
+	  }
+	   
+      }
+  }
+ 
+    
+     
 
 
   
