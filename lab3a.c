@@ -60,14 +60,17 @@ int main(int argc, char **argv)
 
   char *file = argv[1];
   int fd = open(file, O_RDONLY, 0444);
-
+  if(fd == -1)
+    exit_1("");
+  
   uint8_t block_read[1024];
   if(!pread(fd, block_read, 1024, 1024))
     exit_1("");
   superblock_ptr = (superblock_t*) block_read;
-
   block_output();
 
+  /*Get where the block bitmap is from the block descriptor table*/
+  
 
   exit(0);
        
