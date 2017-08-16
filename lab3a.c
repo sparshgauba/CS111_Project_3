@@ -23,7 +23,12 @@ typedef struct superblock{
   char buf4[934];  
 } superblock_t;
 
+typedef struct block_descriptor_table{
+	uint32_t bg_block_bitmap;
+	char buf0[1020];
+} block_group_descriptor_t;
 
+block_descriptor
 superblock_t *superblock_ptr;
 void exit_1(char *str)
 {
@@ -69,7 +74,10 @@ int main(int argc, char **argv)
   superblock_ptr = (superblock_t*) block_read;
   block_output();
 
-  /*Get where the block bitmap is from the block descriptor table*/
+  /*Get where the block bitmap is from the block descriptor table
+  	block group descriptor is block 2*/
+	
+
   
 
   exit(0);
