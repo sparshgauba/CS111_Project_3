@@ -23,13 +23,16 @@ typedef struct superblock{
   char buf4[934];  
 } superblock_t;
 
+
 typedef struct block_descriptor_table{
 	uint32_t bg_block_bitmap;
 	char buf0[1020];
 } block_group_descriptor_t;
 
-block_group_descriptor_t groupdescriptor_ptr;
+
+block_group_descriptor_t *groupdescriptor_ptr;
 superblock_t *superblock_ptr;
+
 void exit_1(char *str)
 {
   fprintf(stderr, "Error: ");
@@ -57,7 +60,7 @@ void block_output()
 
 void group_output()
 {
-  
+  return;
 }
 
 int main(int argc, char **argv)
@@ -69,17 +72,24 @@ int main(int argc, char **argv)
     exit_1("");
   
   uint8_t superblock_read[1024];
-  if(!pread(fd, superblock_read, 1024, 1024))
+  if(pread(fd, superblock_read, 1024, 1024) == -1)
     exit_1("");
   superblock_ptr = (superblock_t*) superblock_read;
   block_output();
 
-  uint8_t blockgroup_read[1024];
-  if(!pread(fd, blockgroup_read, 1024, 2048);
-
   /*Get where the block bitmap is from the block descriptor table
-  	block group descriptor is block 2*/
+     block group descriptor is block 2*/
 	
+
+  uint8_t blockgroup_read[1024];
+  if(pread(fd, blockgroup_read, 1024, 2048) == -1)
+    exit_1("");
+  
+  groupdescriptor_ptr = (block_group_descriptor_t*) blockgroup_read;
+
+  /*Get the block number where the bitmap is*/
+
+  printf("The bitmap is at block %X\n", groupdescriptor_ptr->bg_block_bitmap);
 
 
   
