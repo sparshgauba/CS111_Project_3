@@ -63,13 +63,16 @@ int main(int argc, char **argv)
   if(fd == -1)
     exit_1("");
   
-  uint8_t block_read[1024];
-  if(!pread(fd, block_read, 1024, 1024))
+  uint8_t superblock_read[1024];
+  if(!pread(fd, superblock_read, 1024, 1024))
     exit_1("");
-  superblock_ptr = (superblock_t*) block_read;
+  superblock_ptr = (superblock_t*) superblock_read;
   block_output();
 
-  /*Get where the block bitmap is from the block descriptor table*/
+  /*Get where the block bitmap is from the block group descriptor table
+    block group descriptor is block 2*/
+  uint8_t blockgroup_read[1024];
+  if(!pread(fd, blockgroup_read, 1024, 2048);
   
 
   exit(0);
