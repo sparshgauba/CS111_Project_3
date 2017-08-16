@@ -29,12 +29,40 @@ typedef struct superblock{
 typedef struct block_descriptor_table{
   uint32_t bg_block_bitmap;
   uint32_t bg_inode_bitmap;
-  char buf0[1016];
+  uint32_t bg_inode_table;
+  char buf0[1012];
 } block_group_descriptor_t;
 
+/*An inode is only 128 bytes*/
+typedef struct inode{
+  uint16_t i_mode;
+  uint16_t i_uid;
+  uint32_t i_size;
+  uint32_t i_atime;
+  uint32_t i_ctime;
+  uint32_t i_mtime;
+  uint32_t i_dtime;
+  uint16_t i_gid;
+  uint16_t i_links_count;
+  uint32_t i_blocks;
+  uint32_t i_flags;
+  uint32_t i_ods1;
+  uint32_t i_block[15];
+  uint32_t i_generation;
+  uint32_t i_file_acl;
+  uint32_t i_dir_acl;
+  uint32_t i_faddr;  
+  char buf0[12];
+} inode_t;
 
+/****************************/
+/*Block pointer declarations*/
+/***************************/
 block_group_descriptor_t *groupdescriptor_ptr;
 superblock_t *superblock_ptr;
+/********************************/
+/*End block pointer declarations*/
+/*******************************/
 
 void exit_1(char *str)
 {
@@ -167,8 +195,13 @@ int main(int argc, char **argv)
   free_bits(inodemap, num_iterations, block_flag);
 
   /*START INODE SUMMARY HERE*/
+  char inode_table[BLOCKSIZE];
+  int inode_table_byte = groupdescriptor_ptr->bg_inode_table * BLOCKSIZE;
+  if(pread(fd, inode_table, BLOCKSIZE, inode_table_byte) == -1)
+    exit_1("");
   
-
+  /*Every 128 bytes contains an inode*/
+  
   
 
   exit(0);
