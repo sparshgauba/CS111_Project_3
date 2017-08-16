@@ -7,12 +7,24 @@
 #include <stdint.h>
 #include <errno.h>
 #include <stdlib.h>
+
 typedef struct superblock{
-  uint32_t num_inodes;
-  char temp[1020];
+  uint32_t inodes_count;
+  uint32_t blocks_count;
+  char buf0[16];
+  uint32_t s_log_block_size;
+  char buf1[4];
+  uint32_t s_blocks_per_group;
+  char buf2[4];
+  uint32_t s_inodes_per_group;
+  char buf3[40];
+  uint32_t s_first_inode;
+  uint16_t s_inode_size;
+  char buf4[934];  
 } superblock_t;
 
 
+superblock_t *superblock_ptr;
 void exit_1(char *str)
 {
   fprintf(stderr, "Error: ");
@@ -26,26 +38,38 @@ void exit_1(char *str)
    
 }
 
+void block_output()
+{
+  uint32_t blocksize = 1024 << superblock_ptr->s_log_block_size;
+
+  
+    printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", superblock_ptr->blocks_count,
+	   superblock_ptr->inodes_count, blocksize, superblock_ptr->s_inode_size,
+	   superblock_ptr->s_blocks_per_group, superblock_ptr->s_inodes_per_group,
+	   superblock_ptr->s_first_inode);
+ 
+}
+
+void group_output()
+{
+  
+}
+
 int main(int argc, char **argv)
 {
-  superblock_t *myblock;  
+
   char *file = argv[1];
   int fd = open(file, O_RDONLY, 0444);
 
   uint8_t block_read[1024];
   if(!pread(fd, block_read, 1024, 1024))
     exit_1("");
-  myblock = (superblock_t*) block_read;
-  int i;
-  printf("num inodes %d\n", myblock->num_inodes);
-  
-  
-  printf("\n");
-  
-  
+  superblock_ptr = (superblock_t*) block_read;
+
+  block_output();
 
 
-  return 0;
+  exit(0);
        
   
 }
