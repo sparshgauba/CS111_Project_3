@@ -9,25 +9,16 @@
 #include <stdlib.h>
 #include "ext2_fs.h"
 
-/*This array contains a 1 at the index where an iNode has been 
-  allocated in the inode table*/
+
 int BLOCKSIZE;
 int full_inodes[24];
-char superblock_read[EXT2_MAX_BLOCK_SIZE];
-
-
-typedef struct block_descriptor_table{
-  __u32 bg_block_bitmap;
-  __u32 bg_inode_bitmap;
-  __u32 bg_inode_table;
-  char buf0[1012];
-} block_group_descriptor_t;
+__u8 superblock_read[EXT2_MAX_BLOCK_SIZE];
 
 /****************************/
 /*Block pointer declarations*/
 /***************************/
-block_group_descriptor_t *groupdescriptor_ptr;
 struct ext2_super_block *superblock_ptr;
+struct ext2_group_desc *groupdescriptor_ptr;
 /********************************/
 /*End block pointer declarations*/
 /*******************************/
@@ -64,7 +55,7 @@ void group_output()
   return;
 }
 
-int is_bit_set(char byte, int index)
+int is_bit_set(__u8 byte, int index)
 {
   switch(index)
     {
@@ -80,7 +71,7 @@ int is_bit_set(char byte, int index)
   return -1;
 }
 
-void superblock_info(int fd, char superblock_read[])
+void superblock_info(int fd, __u8 superblock_read[])
 {
   if(pread(fd, superblock_read, EXT2_MAX_BLOCK_SIZE, 1024) == -1)
     exit_1("");
@@ -88,10 +79,17 @@ void superblock_info(int fd, char superblock_read[])
   superblock_output();
 }
 
-void free_bits(char map_read[], int num_iterations, int block_flag, int full_inodes[])
+void free_bits(__u8 map_read[], int block_flag, int full_inodes[])
 {
   int i;
-
+  int num_iterations;
+  
+  if(block_flag)
+    num_iterations = superblock_ptr->s_blocks_per_group / 8;
+  
+  else
+    num_iterations = superblock_ptr->s_inodes_per_group / 8;
+  
   for(i = 0; i < num_iterations; i++)
     {
           /*Cycle through each of the bits in a given byte*/
@@ -112,10 +110,7 @@ void free_bits(char map_read[], int num_iterations, int block_flag, int full_ino
 		
 	        full_inodes[map_index] = 0;
 	      }
-
-
-		
-
+	       
   	  }
 	
 	else if(bit == 1 && full_inodes)
@@ -130,7 +125,7 @@ void free_bits(char map_read[], int num_iterations, int block_flag, int full_ino
   
 }
 
-void inode_table_analysis(char inode_table_read[], int full_inodes[], int NUM_INODES)
+void inode_table_analysis(__u8 inode_table_read[], int full_inodes[], int NUM_INODES)
 {
   int i;
   /*cast the inode read as an array of inode structs*/
@@ -144,9 +139,9 @@ void inode_table_analysis(char inode_table_read[], int full_inodes[], int NUM_IN
       
       if(full_inodes[i])	
 	{
-	  int byte_index = INODE_SIZE * i;
+	  //	  int byte_index = INODE_SIZE * i;
 	  printf("INODE,%d\n",i);
-	  printf("inode_table[i].i_size = %d\n", inode_table[i].i_size);
+	  //	  printf("inode_table[i].i_size = %d\n", inode_table[i].i_size);
 
 	}
     }
@@ -172,7 +167,7 @@ int main(int argc, char **argv)
   if(pread(fd, blockgroup_read, BLOCKSIZE, 2048) == -1)
     exit_1("");
   
-  groupdescriptor_ptr = (block_group_descriptor_t*) blockgroup_read;
+  groupdescriptor_ptr = (struct ext2_group_desc*) blockgroup_read;
 
   /*Print the info about the block groups somewhere here?*/
 
@@ -181,21 +176,21 @@ int main(int argc, char **argv)
   //TODO: IMPLEMENT FOR MORE THAN 1 BLOCK GROUP
   /*Get the block number where the bitmap is*/
 
-  char blockmap[BLOCKSIZE];
+  __u8 blockmap[BLOCKSIZE];
   int blockmap_byte = groupdescriptor_ptr->bg_block_bitmap * BLOCKSIZE;
   if(pread(fd, blockmap, BLOCKSIZE, blockmap_byte) == -1)
     exit_1("");
   
   /*Account for variable group size*/
   //each byte is 8 bits
-  int num_iterations = superblock_ptr->s_blocks_per_group / 8;
+
 
   int block_flag = 1;
-  free_bits(blockmap, num_iterations, block_flag, NULL);
+  free_bits(blockmap, block_flag, NULL);
 
   
   /*Get the free inodes, pretty much the same implementation as free blocks*/
-  char inodemap[BLOCKSIZE];
+  __u8 inodemap[BLOCKSIZE];
   
   int NUM_INODES = superblock_ptr->s_inodes_per_group;
 
@@ -208,18 +203,18 @@ int main(int argc, char **argv)
   if(pread(fd, inodemap, BLOCKSIZE, inodemap_byte) == -1)
     exit_1("");
   
-  num_iterations = superblock_ptr->s_inodes_per_group / 8;
+
   
   block_flag = 0;
   
-  free_bits(inodemap, num_iterations, block_flag, full_inodes);
+  free_bits(inodemap, block_flag, full_inodes);
   
   /**************************/
   /*START INODE SUMMARY HERE*/
   /*************************/
 
 
-  char inode_table_read[BLOCKSIZE];
+  __u8 inode_table_read[BLOCKSIZE];
   memset(inode_table_read, 0, BLOCKSIZE);
 
   int inode_table_byte = groupdescriptor_ptr->bg_inode_table * BLOCKSIZE;
@@ -228,8 +223,6 @@ int main(int argc, char **argv)
   if(pread(fd, inode_table_read, BLOCKSIZE, inode_table_byte) == -1)
     exit_1("");
 
-
-  
   inode_table_analysis(inode_table_read, full_inodes, NUM_INODES);
 
 
