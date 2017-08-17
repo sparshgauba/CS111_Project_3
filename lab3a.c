@@ -22,32 +22,9 @@ typedef struct block_descriptor_table{
   char buf0[1012];
 } block_group_descriptor_t;
 
-/*An inode is only 128 bytes*/
-typedef struct inode{
-  uint16_t i_mode;
-  uint16_t i_uid;
-  __u32 i_size;
-  __u32 i_atime;
-  __u32 i_ctime;
-  __u32 i_mtime;
-  __u32 i_dtime;
-  uint16_t i_gid;
-  uint16_t i_links_count;
-  __u32 i_blocks;
-  __u32 i_flags;
-  __u32 i_ods1;
-  __u32 i_block[15];
-  __u32 i_generation;
-  __u32 i_file_acl;
-  __u32 i_dir_acl;
-  __u32 i_faddr;  
-  char buf0[12];
-} inode_t;
-
 /****************************/
 /*Block pointer declarations*/
 /***************************/
-inode_t *inode_table_ptr;
 block_group_descriptor_t *groupdescriptor_ptr;
 struct ext2_super_block *superblock_ptr;
 /********************************/
