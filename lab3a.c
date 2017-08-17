@@ -129,18 +129,24 @@ void inode_table_analysis(__u8 inode_table_read[], int full_inodes[], int NUM_IN
 {
   int i;
   
-  //  __u16 INODE_SIZE = superblock_ptr->s_inode_size;
-  //  struct ext2_inode *inode_table = malloc(INODE_SIZE * NUM_INODES);
-  //  inode_table = (struct ext2_inode*) inode_table_read;
+  __u16 INODE_SIZE = superblock_ptr->s_inode_size;
+  struct ext2_inode *inode_table = malloc(INODE_SIZE * NUM_INODES);
+  inode_table = (struct ext2_inode*) inode_table_read;
   /*Every 128 bytes contains an inode*/
   for(i = 0; i < NUM_INODES; i++)
     {
       
       if(full_inodes[i])	
 	{
-	  //	  int byte_index = INODE_SIZE * i;
-	  printf("INODE,%d\n",i);
-	  //	  printf("inode_table[i].i_size = %d\n", inode_table[i].i_size);
+	  if(inode_table[i].i_mode == 0)
+	    {
+	    printf("Inode,%d mode = 0\n", i);
+	    continue;
+	    }
+	  
+	  int file_size = inode_table[i].i_size;
+	  printf("INODE,%d,%d\n",i,file_size);
+
 
 	}
     }
