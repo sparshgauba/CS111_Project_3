@@ -13,6 +13,7 @@
   allocated in the inode table*/
 int BLOCKSIZE;
 int full_inodes[24];
+char superblock_read[EXT2_MAX_BLOCK_SIZE];
 
 
 typedef struct block_descriptor_table{
@@ -49,11 +50,13 @@ void superblock_output()
    int blocksize = 1024 << superblock_ptr->s_log_block_size;
    BLOCKSIZE = blocksize;
 
+
     printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", superblock_ptr->s_blocks_count,
 	   superblock_ptr->s_inodes_count, blocksize, superblock_ptr->s_inode_size,
 	   superblock_ptr->s_blocks_per_group, superblock_ptr->s_inodes_per_group,
 	   superblock_ptr->s_first_ino);
- 
+
+
 }
 
 void group_output()
@@ -77,9 +80,8 @@ int is_bit_set(char byte, int index)
   return -1;
 }
 
-void superblock_info(int fd)
+void superblock_info(int fd, char superblock_read[])
 {
-  uint8_t superblock_read[EXT2_MAX_BLOCK_SIZE];
   if(pread(fd, superblock_read, EXT2_MAX_BLOCK_SIZE, 1024) == -1)
     exit_1("");
   superblock_ptr = (struct ext2_super_block*) superblock_read;
@@ -133,15 +135,14 @@ void inode_table_analysis(char inode_table_read[], int full_inodes[], int NUM_IN
   int i;
   /*cast the inode read as an array of inode structs*/
   
-  uint16_t INODE_SIZE = superblock_ptr->s_inode_size;
-  
+  __u16 INODE_SIZE = superblock_ptr->s_inode_size;
   struct ext2_inode *inode_table = malloc(INODE_SIZE * NUM_INODES);
   inode_table = (struct ext2_inode*) inode_table_read;
   /*Every 128 bytes contains an inode*/
   for(i = 0; i < NUM_INODES; i++)
     {
-
-      if(inode_table[i].i_mode != 0 && inode_table[i].i_links_count != 0)
+      
+      if(full_inodes[i])	
 	{
 	  int byte_index = INODE_SIZE * i;
 	  printf("INODE,%d\n",i);
@@ -160,8 +161,8 @@ int main(int argc, char **argv)
   int fd = open(file, O_RDONLY, 0444);
   if(fd == -1)
     exit_1("");
-  
-  superblock_info(fd);
+
+  superblock_info(fd, superblock_read);
 
   /*Get where the block bitmap is from the block descriptor table
      block group descriptor is block 2*/
@@ -197,7 +198,7 @@ int main(int argc, char **argv)
   char inodemap[BLOCKSIZE];
   
   int NUM_INODES = superblock_ptr->s_inodes_per_group;
-  
+
   /*0 means empty, 1 means full*/
   int full_inodes[NUM_INODES];
   
@@ -212,18 +213,20 @@ int main(int argc, char **argv)
   block_flag = 0;
   
   free_bits(inodemap, num_iterations, block_flag, full_inodes);
-
   
   /**************************/
   /*START INODE SUMMARY HERE*/
   /*************************/
+
+
   char inode_table_read[BLOCKSIZE];
-  
+  memset(inode_table_read, 0, BLOCKSIZE);
+
   int inode_table_byte = groupdescriptor_ptr->bg_inode_table * BLOCKSIZE;
-  
+
+
   if(pread(fd, inode_table_read, BLOCKSIZE, inode_table_byte) == -1)
     exit_1("");
-
 
 
   
