@@ -128,11 +128,10 @@ void free_bits(__u8 map_read[], int block_flag, int full_inodes[])
 void inode_table_analysis(__u8 inode_table_read[], int full_inodes[], int NUM_INODES)
 {
   int i;
-  /*cast the inode read as an array of inode structs*/
   
-  __u16 INODE_SIZE = superblock_ptr->s_inode_size;
-  struct ext2_inode *inode_table = malloc(INODE_SIZE * NUM_INODES);
-  inode_table = (struct ext2_inode*) inode_table_read;
+  //  __u16 INODE_SIZE = superblock_ptr->s_inode_size;
+  //  struct ext2_inode *inode_table = malloc(INODE_SIZE * NUM_INODES);
+  //  inode_table = (struct ext2_inode*) inode_table_read;
   /*Every 128 bytes contains an inode*/
   for(i = 0; i < NUM_INODES; i++)
     {
@@ -157,12 +156,17 @@ int main(int argc, char **argv)
   if(fd == -1)
     exit_1("");
 
+  
+  /*************/
+  /*SUPER BLOCK*/
+  /************/
   superblock_info(fd, superblock_read);
 
-  /*Get where the block bitmap is from the block descriptor table
-     block group descriptor is block 2*/
-	
 
+  /************************/
+  /*BLOCK DESCRIPTOR TABLE*/
+  /***********************/
+  
   uint8_t blockgroup_read[BLOCKSIZE];
   if(pread(fd, blockgroup_read, BLOCKSIZE, 2048) == -1)
     exit_1("");
@@ -173,7 +177,10 @@ int main(int argc, char **argv)
 
   
   
-  //TODO: IMPLEMENT FOR MORE THAN 1 BLOCK GROUP
+  /**********************/
+  /*BITMAP AND INODE MAP*/
+  /*********************/
+  
   /*Get the block number where the bitmap is*/
 
   __u8 blockmap[BLOCKSIZE];
