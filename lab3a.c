@@ -9,6 +9,9 @@
 #include <stdlib.h>
 
 #define BLOCKSIZE 1024
+/*This array contains a 1 at the index where an iNode has been 
+  allocated in the inode table*/
+int full_inodes[24];
 
 typedef struct superblock{
   uint32_t inodes_count;
@@ -119,7 +122,7 @@ void superblock_info(int fd)
   superblock_output();
 }
 
-void free_bits(char map_read[], int num_iterations, int block_flag)
+void free_bits(char map_read[], int num_iterations, int block_flag, int full_inodes[])
 {
   int i;
   for(i = 0; i < num_iterations; i++)
@@ -129,15 +132,28 @@ void free_bits(char map_read[], int num_iterations, int block_flag)
     for(j = 0; j < 8; j++)
       {
   	int bit = is_bit_set(map_read[i],j);
+      	int map_index = i * 8 + j;
   	if(! bit)
   	  {
-  	    int index_free = i * 8 + j;
-	    if(block_flag)
-	      printf("BFREE,%d\n", index_free);
-	    else
-	      printf("IFREE,%d\n", index_free);
+
+	    if(block_flag && !full_inodes)
+		printf("BFREE,%d\n", map_index);
 	    
+	    else if(full_inodes && !block_flag)
+	      {
+		printf("IFREE,%d\n", map_index);
+		
+	        full_inodes[map_index] = 0;
+	      }
+
+
+		
+
   	  }
+	
+	else if(bit && full_inodes)
+          full_inodes[map_index] = 1;
+	
   	else if(bit == -1)
   	  exit_1("Error with bit-map.");
 	       
@@ -145,6 +161,19 @@ void free_bits(char map_read[], int num_iterations, int block_flag)
 
     }
 }
+
+void inode_table_analysis(char inode_table[], int NUM_INODES)
+{
+  int i;
+  /*Every 128 bytes contains an inode*/
+  for(i = 0; i < NUM_INODES; i++)
+    {
+      if(full_inodes[i] == 1)
+	printf("INODE,%d\n",i);
+    }
+
+}
+
 
 int main(int argc, char **argv)
 {
@@ -182,26 +211,39 @@ int main(int argc, char **argv)
   //each byte is 8 bits
   int num_iterations = superblock_ptr->s_blocks_per_group / 8;
   int block_flag = 1;
-  free_bits(blockmap, num_iterations, block_flag);
+  free_bits(blockmap, num_iterations, block_flag, NULL);
 
   
   /*Get the free inodes, pretty much the same implementation as free blocks*/
   char inodemap[BLOCKSIZE];
+  
+  int NUM_INODES = superblock_ptr->s_inodes_per_group;
+  
+  int full_inodes[NUM_INODES];
+  
   int inodemap_byte = groupdescriptor_ptr->bg_inode_bitmap * BLOCKSIZE;
+
+  
   if(pread(fd, inodemap, BLOCKSIZE, inodemap_byte) == -1)
     exit_1("");
+  
   num_iterations = superblock_ptr->s_inodes_per_group / 8;
+  
   block_flag = 0;
-  free_bits(inodemap, num_iterations, block_flag);
-
+  
+  free_bits(inodemap, num_iterations, block_flag, full_inodes);
+  
   /*START INODE SUMMARY HERE*/
   char inode_table[BLOCKSIZE];
+  
   int inode_table_byte = groupdescriptor_ptr->bg_inode_table * BLOCKSIZE;
+  
   if(pread(fd, inode_table, BLOCKSIZE, inode_table_byte) == -1)
     exit_1("");
   
-  /*Every 128 bytes contains an inode*/
   
+  
+  inode_table_analysis(inode_table, NUM_INODES);
   
 
   exit(0);
