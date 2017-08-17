@@ -39,6 +39,7 @@ void exit_1(char *str)
 }
 
 
+
 void timestamp_to_date(__u32 timestamp, char time_buf[])
 {
   char buf[80];
@@ -64,17 +65,21 @@ void superblock_output()
 
 }
 
-void group_output (int fd)
+void group_output (int num_block_groups, int fd)
 {
-    groupdescriptor_ptr = malloc(32);
-    if (pread (fd, groupdescriptor_ptr, 32, 2048) == -1)
-    {
-        exit_1("Could not read descriptor table");
-    }
+    int i;
+    for (i = 0; i < num_block_groups; i++)
+    
+        if (pread (fd, groupdescriptor_ptr + i, BLOCKSIZE, 2048 + (i * 32)) == -1)
+        {
+            exit_1("Could not read descriptor table");
+        }
 
-    printf("GROUP,0,%d,%d,%d,%d,%d,%d,%d\n", superblock_ptr->s_blocks_count, superblock_ptr->s_inodes_count,
-           groupdescriptor_ptr->bg_free_blocks_count, groupdescriptor_ptr->bg_free_inodes_count,
-           groupdescriptor_ptr->bg_block_bitmap, groupdescriptor_ptr->bg_inode_bitmap,groupdescriptor_ptr->bg_inode_table);
+        printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", i, superblock_ptr->blocks_count, superblock_ptr->inodes_count,
+               (groupdescriptor_ptr + i)->bg_free_blocks_count, (groupdescriptor_ptr + i)->bg_free_inodes_count,
+               (groupdescriptor_ptr + i)->bg_block_bitmap, (groupdescriptor_ptr + i)->bg_inode_bitmap,
+               (groupdescriptor_ptr + i)->bg_inode_table);
+    }
 }
 
 
@@ -239,7 +244,14 @@ int main(int argc, char **argv)
   /*BLOCK GROUP DESCRIPTOR TABLE*/
   /***********************/
   
-  group_output(fd);
+  uint8_t blockgroup_read[BLOCKSIZE];
+  if(pread(fd, blockgroup_read, BLOCKSIZE, 2048) == -1)
+    exit_1("");
+  
+  groupdescriptor_ptr = (struct ext2_group_desc*) blockgroup_read;
+
+  /*Print the info about the block groups somewhere here?*/
+  
   
   
   /**********************/
