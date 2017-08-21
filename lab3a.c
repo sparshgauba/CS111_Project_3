@@ -239,6 +239,7 @@ void indirect_reference_helper (int inode_index, int indir_level, int *logical_o
   if (indir_level == 1)
   {
     i = 0;
+    
     if(pread (fd, indir_block_read, BLOCKSIZE, indir_block_num * BLOCKSIZE) == -1)
     {
       exit_1 ("");
@@ -310,6 +311,7 @@ void indirect_reference_output (int inode_index, __u32 *i_block_ptr)
   int i = 12;
   while (i_block_ptr[i] != 0)
   {
+  	//printf("indirect_reference_helper: Started --%d-- indirect block\n", i - 11);
     indirect_reference_helper (inode_index, i - 11, &logical_offset, i_block_ptr[i]);
     i++;
   }
@@ -444,8 +446,9 @@ int main(int argc, char **argv)
   /**************************/
   /*START INODE SUMMARY HERE*/
   /*************************/
-  
-  __u8 inode_table_read[BLOCKSIZE];    
+  int inode_blocks = ((NUM_INODES * 128) + BLOCKSIZE - 1) / BLOCKSIZE; //In case inode table is longer than 1 block
+  //printf("number of inodes blocks : %d\n", inode_blocks);
+  __u8 inode_table_read[BLOCKSIZE * inode_blocks];    
   parse_inode_table(inode_table_read, full_inodes);
 
 
