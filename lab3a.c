@@ -178,8 +178,6 @@ void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
 
 void directory_parsing(int inode_index, struct ext2_inode inode)
 {
-    //printf("-------------Starting directory parsing--------------\n");
-  
     __u8 *directory_read = malloc(sizeof(__u8) * BLOCKSIZE);
     int i = 0;
 
@@ -190,25 +188,23 @@ void directory_parsing(int inode_index, struct ext2_inode inode)
             directory_read = realloc(directory_read, sizeof(__u8) * BLOCKSIZE * (i + 1));
         }
 
-        if(pread(fd, directory_read, BLOCKSIZE, inode.i_block[i] * BLOCKSIZE) == -1)
+        if(pread(fd, directory_read + (BLOCKSIZE * i), BLOCKSIZE, inode.i_block[i] * BLOCKSIZE) == -1)
         {
             exit_1("");
         }
         i++;
     }
-    //printf("-------------------value of i = %d ---------------\n", i);
-
 
     __u32 offset = 0;
     __u32 file_entry_inode = directory_read[offset];
     __u16 rec_len;
     memcpy(&rec_len, directory_read + offset + 4, 2);
-    while(file_entry_inode > 0 && rec_len > 0)
+
+    while(rec_len > 0 && offset < (i * BLOCKSIZE))
     {
-        //printf("-------------- directory read Offset: %d\n", offset);
         __u8 name_len = directory_read[6 + offset];
-        
         memcpy(&rec_len, directory_read + offset + 4, 2);
+        if (inode_index == 11)
         if (name_len > 0)
         {
             char *name = malloc(sizeof(char) * name_len);
@@ -222,10 +218,7 @@ void directory_parsing(int inode_index, struct ext2_inode inode)
         }
         offset += rec_len;
         file_entry_inode = directory_read[offset];
-
-        
     }
-
     free(directory_read);
 }
 

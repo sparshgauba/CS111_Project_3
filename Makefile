@@ -7,3 +7,5 @@ clean:
 	rm lab3a
 emacs:
 	emacs -nw lab3a.c
+test:
+	$(CC) $(CFLAGS) -o test test.c
