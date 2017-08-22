@@ -60,23 +60,24 @@ void dump_bytes(__u8 table[])
 
 void timestamp_to_date(__u32 timestamp, char time_buf[])
 {
-  char buf[80];
-  time_t time = (int) timestamp;
-  struct tm ts;  
-  ts = *localtime(&time);
+    char buf[80];
+    time_t time = (int) timestamp;
+    struct tm ts;  
+    ts = *localtime(&time);
 
-  strftime(buf, sizeof(buf), "%m/%d/%y %H:%M:%S", &ts);
+    strftime(buf, sizeof(buf), "%m/%d/%y %H:%M:%S", &ts);
 
-  strcpy(time_buf, buf);
+    strcpy(time_buf, buf);
 }
 
 void parse_group_table()
 {
   groupdescriptor_ptr = malloc(32);
   if (pread (fd, groupdescriptor_ptr, 32, 2048) == -1)
-    {
-      exit_1("Could not read descriptor table");
-    }
+  {
+
+    exit_1("Could not read descriptor table");
+  }
 
   printf("GROUP,0,%d,%d,%d,%d,%d,%d,%d\n", superblock_ptr->s_blocks_count, superblock_ptr->s_inodes_count,
    groupdescriptor_ptr->bg_free_blocks_count, groupdescriptor_ptr->bg_free_inodes_count,
@@ -177,43 +178,55 @@ void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
 
 void directory_parsing(int inode_index, struct ext2_inode inode)
 {
+    //printf("-------------Starting directory parsing--------------\n");
   
-  __u8 *directory_read = malloc(sizeof(__u8) * BLOCKSIZE);
-  int i = 0;
-  
-  while(inode.i_block[i])
+    __u8 *directory_read = malloc(sizeof(__u8) * BLOCKSIZE);
+    int i = 0;
+
+    while(inode.i_block[i])
     {
-      if(i != 0)
-  directory_read = realloc(directory_read, sizeof(__u8) * BLOCKSIZE * (i + 1));
-      
-      if(pread(fd, directory_read, BLOCKSIZE, inode.i_block[i] * BLOCKSIZE) == -1)
-  exit_1("");
-      
-      i++;
+        if(i != 0)
+        {
+            directory_read = realloc(directory_read, sizeof(__u8) * BLOCKSIZE * (i + 1));
+        }
+
+        if(pread(fd, directory_read, BLOCKSIZE, inode.i_block[i] * BLOCKSIZE) == -1)
+        {
+            exit_1("");
+        }
+        i++;
+    }
+    //printf("-------------------value of i = %d ---------------\n", i);
+
+
+    __u32 offset = 0;
+    __u32 file_entry_inode = directory_read[offset];
+    __u16 rec_len;
+    memcpy(&rec_len, directory_read + offset + 4, 2);
+    while(file_entry_inode > 0 && rec_len > 0)
+    {
+        //printf("-------------- directory read Offset: %d\n", offset);
+        __u8 name_len = directory_read[6 + offset];
+        
+        memcpy(&rec_len, directory_read + offset + 4, 2);
+        if (name_len > 0)
+        {
+            char *name = malloc(sizeof(char) * name_len);
+
+            memcpy(name, directory_read + offset + 8, name_len);
+            name[name_len] = '\0';
+            
+
+            printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n", inode_index, offset, file_entry_inode, rec_len, name_len,  name);
+            free(name);
+        }
+        offset += rec_len;
+        file_entry_inode = directory_read[offset];
+
+        
     }
 
-  
-  __u32 offset = 0;
-  __u32 file_entry_inode = directory_read[offset];
-  while(file_entry_inode)
-    {
-      __u8 name_len = directory_read[6 + offset];
-
-      char *name = malloc(sizeof(char) * name_len);
-      
-      memcpy(name, directory_read + offset + 8, name_len);
-      name[name_len] = '\0';
-      __u16 rec_len[1];
-      memcpy(rec_len, directory_read + offset + 4, 2);
-
-      printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n", inode_index, offset, file_entry_inode, rec_len[0], name_len,  name);
-      offset += rec_len[0];
-      file_entry_inode = directory_read[offset];
-      
-      free(name);
-    }
-
-  free(directory_read);
+    free(directory_read);
 }
 
 char file_type(__u16 i_mode)
@@ -232,89 +245,88 @@ char file_type(__u16 i_mode)
 
 void indirect_reference_helper (int inode_index, int indir_level, int *logical_offset, __u32 indir_block_num)
 {
-  __u8 indir_block_read[BLOCKSIZE];
-  __u32 reference_block_num;
-  int max_val_i = BLOCKSIZE/4;
-  int i;
-  if (indir_level == 1)
-  {
-    i = 0;
-    
-    if(pread (fd, indir_block_read, BLOCKSIZE, indir_block_num * BLOCKSIZE) == -1)
+    __u8 indir_block_read[BLOCKSIZE];
+    __u32 reference_block_num;
+    int max_val_i = BLOCKSIZE/4;
+    int i;
+    if (indir_level == 1)
     {
-      exit_1 ("");
+        i = 0;
+        
+        if(pread (fd, indir_block_read, BLOCKSIZE, indir_block_num * BLOCKSIZE) == -1)
+        {
+            exit_1 ("");
+        }
+        __u32 *indir_block_ptr = (__u32 *) indir_block_read;
+        while (i < max_val_i)
+        {
+            if ((reference_block_num = indir_block_ptr[i]) != 0)
+            {
+                printf ("INDIRECT,%d,1,%d,%d,%d\n", inode_index, *logical_offset, indir_block_num, reference_block_num );
+            }
+            i++;
+            (*logical_offset)++;
+        }
     }
-    __u32 *indir_block_ptr = (__u32 *) indir_block_read;
-    while (i < max_val_i)
+    else if (indir_level == 2)
     {
-      if ((reference_block_num = indir_block_ptr[i]) != 0)
-      {
-        printf ("INDIRECT,%d,1,%d,%d,%d\n", inode_index, *logical_offset, indir_block_num, reference_block_num );
-      }
-      i++;
-      (*logical_offset)++;
-    }
-  }
-  else if (indir_level == 2)
-  {
-    i = 0;
-    if (pread (fd, indir_block_read, BLOCKSIZE, indir_block_num * BLOCKSIZE) == -1)
-    {
-      exit_1 ("");
-    }
-    __u32 *indir_block_ptr = (__u32 *) indir_block_read;
+        i = 0;
+        if (pread (fd, indir_block_read, BLOCKSIZE, indir_block_num * BLOCKSIZE) == -1)
+        {
+            exit_1 ("");
+        }
+        __u32 *indir_block_ptr = (__u32 *) indir_block_read;
 
-    while (i < max_val_i)
-    {
-      if ((reference_block_num = indir_block_ptr[i]) != 0)
-      {
-        printf ("INDIRECT,%d,2,%d,%d,%d\n", inode_index, *logical_offset, indir_block_num, reference_block_num);
-        indirect_reference_helper (inode_index, 1, logical_offset, reference_block_num);
-      }
-      if (reference_block_num == 0)
-      {
-        (*logical_offset) += 256;
-      }
-      i++;
-    }
+        while (i < max_val_i)
+        {
+            if ((reference_block_num = indir_block_ptr[i]) != 0)
+            {
+                printf ("INDIRECT,%d,2,%d,%d,%d\n", inode_index, *logical_offset, indir_block_num, reference_block_num);
+                indirect_reference_helper (inode_index, 1, logical_offset, reference_block_num);
+            }
+            if (reference_block_num == 0)
+            {
+                (*logical_offset) += max_val_i;
+            }
+            i++;
+        }
 
-  }
-  else if (indir_level == 3)
-  {
-    i = 0;
-    if (pread (fd, indir_block_read, BLOCKSIZE, indir_block_num * BLOCKSIZE) == -1)
-    {
-      exit_1 ("");
     }
-    __u32 *indir_block_ptr = (__u32 *) indir_block_read;
-
-    while (i < max_val_i)
+    else if (indir_level == 3)
     {
-      if ((reference_block_num = indir_block_ptr[i]) != 0)
-      {
-        printf ("INDIRECT,%d,3,%d,%d,%d\n", inode_index, *logical_offset, indir_block_num, reference_block_num);
-        indirect_reference_helper (inode_index, 2, logical_offset, reference_block_num);
-      }
-      if (reference_block_num == 0)
-      {
-        (*logical_offset) += 65536;
-      }
-      i++;
-    }
+        i = 0;
+        if (pread (fd, indir_block_read, BLOCKSIZE, indir_block_num * BLOCKSIZE) == -1)
+        {
+            exit_1 ("");
+        }
+        __u32 *indir_block_ptr = (__u32 *) indir_block_read;
 
-  }
+        while (i < max_val_i)
+        {
+            if ((reference_block_num = indir_block_ptr[i]) != 0)
+            {
+                printf ("INDIRECT,%d,3,%d,%d,%d\n", inode_index, *logical_offset, indir_block_num, reference_block_num);
+                indirect_reference_helper (inode_index, 2, logical_offset, reference_block_num);
+            }
+            if (reference_block_num == 0)
+            {
+                (*logical_offset) += max_val_i * max_val_i;
+            }
+            i++;
+        }
+
+    }
 }
 
 void indirect_reference_output (int inode_index, __u32 *i_block_ptr)
 {
-  int logical_offset = 12;
-  int i = 12;
-  while (i_block_ptr[i] != 0)
-  {
-  	//printf("indirect_reference_helper: Started --%d-- indirect block\n", i - 11);
-    indirect_reference_helper (inode_index, i - 11, &logical_offset, i_block_ptr[i]);
-    i++;
-  }
+    int logical_offset = 12;
+    int i = 12;
+    while (i_block_ptr[i] != 0)
+    {
+        indirect_reference_helper (inode_index, i - 11, &logical_offset, i_block_ptr[i]);
+        i++;
+    }
 }
 
 
@@ -378,10 +390,10 @@ void parse_inode_table(__u8 inode_table_read[], int full_inodes[])
       }
       printf("\n");
 
-      //if(filetype == 'd')
-      //{
-      //  directory_parsing(i+1, inode_table[i]);
-      //}
+      if(filetype == 'd')
+      {
+        directory_parsing(i+1, inode_table[i]);
+      }
 
       if (filetype == 'd' || filetype == 'f')
       {
