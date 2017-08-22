@@ -204,7 +204,6 @@ void directory_parsing(int inode_index, struct ext2_inode inode)
     {
         __u8 name_len = directory_read[6 + offset];
         memcpy(&rec_len, directory_read + offset + 4, 2);
-        if (inode_index == 11)
         if (name_len > 0)
         {
             char *name = malloc(sizeof(char) * name_len);
