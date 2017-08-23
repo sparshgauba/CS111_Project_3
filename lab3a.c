@@ -84,22 +84,20 @@ void parse_group_table()
    groupdescriptor_ptr->bg_block_bitmap, groupdescriptor_ptr->bg_inode_bitmap,groupdescriptor_ptr->bg_inode_table);
 }
 
-int is_bit_set(__u8 byte, int index)
+__u8 is_bit_set (__u8 byte, int index)
 {
- 
-  switch(index)
+    switch (index)
     {
-    case 0: return (byte & 0x80) >> 7;
-    case 1: return (byte & 0x40) >> 6;
-    case 2: return (byte & 0x20) >> 5;
-    case 3: return (byte & 0x10) >> 4;
-    case 4: return (byte & 0x8) >> 3;
-    case 5: return (byte & 0x4) >> 2;
-    case 6: return (byte & 0x2) >> 1;
-    case 7: return (byte & 0x1);
+        case 7: return (byte & 0x80);
+        case 6: return (byte & 0x40);
+        case 5: return (byte & 0x20);
+        case 4: return (byte & 0x10);
+        case 3: return (byte & 0x08);
+        case 2: return (byte & 0x04);
+        case 1: return (byte & 0x02);
+        case 0: return (byte & 0x01);
     }
-  
-  return -1;
+    return -1;
 }
 
 void parse_superblock()
@@ -118,6 +116,7 @@ void parse_superblock()
      superblock_ptr->s_first_ino);
 }
 
+/*
 void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
 {
   int offset;
@@ -130,7 +129,7 @@ void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
     exit_1("");
   int i;
   int num_iterations;
-  /*Divide by 8 because a byte has 8 bits*/
+  //Divide by 8 because a byte has 8 bits
   if(block_flag)
     num_iterations = superblock_ptr->s_blocks_per_group / 8;
   
@@ -141,7 +140,7 @@ void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
   
   for(i = 0; i < num_iterations; i++)
     {
-      /*Cycle through each of the bits in a given byte*/
+      //Cycle through each of the bits in a given byte
     __u8 j;
     for(j = 0; j < 8; j++)
       {
@@ -149,7 +148,7 @@ void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
         int map_index = i * 8 + j;
     if(bit == 0)
       {
-      /*full_inodes == NULL*/
+      //full_inodes == NULL
       if(block_flag && !full_inodes)
     printf("BFREE,%d\n", map_index +1);
       
@@ -173,6 +172,79 @@ void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
 
     }
   
+}
+*/
+void parse_bitmap (__u8 map_read[], int block_flag, int full_inodes[])
+{
+    int block_byte_offset;
+    if (block_flag)
+    {
+        block_byte_offset = groupdescriptor_ptr->bg_block_bitmap * BLOCKSIZE;
+        //printf("-----------------block_bitmap_offset: %d---------------\n", block_byte_offset);
+    }
+    else
+    {
+        block_byte_offset = groupdescriptor_ptr->bg_inode_bitmap * BLOCKSIZE;
+        //printf("-----------------inode_bitmap_offset: %d---------------\n", block_byte_offset);
+    }
+
+
+    if(pread(fd, map_read, BLOCKSIZE, block_byte_offset) == -1)
+    {
+        exit_1("");
+    }
+
+    int i;
+    int num_iterations;
+    //Divide by 8 because a byte has 8 bits
+
+    if(block_flag)
+    {
+        num_iterations = superblock_ptr->s_blocks_per_group / 8;
+        //num_iterations = superblock_ptr->s_blocks_count + 7 / 8;
+    }
+
+    else
+    {
+        num_iterations = superblock_ptr->s_inodes_per_group / 8;
+    }
+    
+    for(i = 0; i < num_iterations; i++)
+    {
+        //Cycle through each of the bits in a given byte
+        int j;
+        for(j = 0; j < 8; j++)
+        {
+            int bit = is_bit_set(map_read[i],j);
+            int map_index = i * 8 + j;
+            if(bit == 0)
+            {
+                //full_inodes == NULL
+                if(block_flag && !full_inodes)
+                {
+                    printf("BFREE,%d\n", map_index +1);
+                }
+
+                else if(full_inodes && !block_flag)
+                {
+                    //root inode at 2, bitmap
+                    printf("IFREE,%d\n", map_index +1);
+                    full_inodes[map_index] = 0;
+                }
+
+            }
+
+            else if(bit == 1 && full_inodes)
+            {
+                full_inodes[map_index] = 1;
+            }
+
+            else if(bit == -1)
+            {
+                exit_1("Error with bit-map.");
+            }
+        }
+    }
 }
 
 
