@@ -1,0 +1,20 @@
+NAME: Sparsh Gauba
+EMAIL: gaubasparsh@gmail.com
+UID: 204600605
+
+Lab partner: Sean Langley
+
+This project involved printing out a comma separated list
+containing information about the input file, which is a
+EXT2 formatted file system image.
+
+Makefile: Contains the required targets to compile the
+	  program, clean the extraneous files, and create the
+	  distributable tar file.
+
+ext2_fs.h: Header file with the definitions of various data
+	   types and structs that are used in lab3a.c for
+	   interpretig data from various parts of input file
+	   
+lab3a.c: This is the implementation of the file system
+	 interpreter.
