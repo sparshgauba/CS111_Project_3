@@ -63,8 +63,9 @@ void timestamp_to_date(__u32 timestamp, char time_buf[])
     char buf[80];
     time_t time = (int) timestamp;
     struct tm ts;  
-    ts = *localtime(&time);
+    ts = *gmtime(&time);
 
+   
     strftime(buf, sizeof(buf), "%m/%d/%y %H:%M:%S", &ts);
 
     strcpy(time_buf, buf);
@@ -116,64 +117,6 @@ void parse_superblock()
      superblock_ptr->s_first_ino);
 }
 
-/*
-void parse_bitmap(__u8 map_read[], int block_flag, int full_inodes[])
-{
-  int offset;
-  if(block_flag)
-    offset = groupdescriptor_ptr->bg_block_bitmap * BLOCKSIZE;
-  else
-    offset = groupdescriptor_ptr->bg_inode_bitmap * BLOCKSIZE;
-  
-  if(pread(fd, map_read, BLOCKSIZE, offset) == -1)
-    exit_1("");
-  int i;
-  int num_iterations;
-  //Divide by 8 because a byte has 8 bits
-  if(block_flag)
-    num_iterations = superblock_ptr->s_blocks_per_group / 8;
-  
-  else
-    num_iterations = superblock_ptr->s_inodes_per_group / 8;
-  
-
-  
-  for(i = 0; i < num_iterations; i++)
-    {
-      //Cycle through each of the bits in a given byte
-    __u8 j;
-    for(j = 0; j < 8; j++)
-      {
-    int bit = is_bit_set(map_read[i],j);
-        int map_index = i * 8 + j;
-    if(bit == 0)
-      {
-      //full_inodes == NULL
-      if(block_flag && !full_inodes)
-    printf("BFREE,%d\n", map_index +1);
-      
-      else if(full_inodes && !block_flag)
-        {
-    //root inode at 2, bitmap
-    printf("IFREE,%d\n", map_index +2);
-    
-          full_inodes[map_index] = 0;
-        }
-         
-      }
-  
-  else if(bit == 1 && full_inodes)
-          full_inodes[map_index] = 1;
-  
-    else if(bit == -1)
-      exit_1("Error with bit-map.");
-         
-      }
-
-    }
-  
-}
-*/
 void parse_bitmap (__u8 map_read[], int block_flag, int full_inodes[])
 {
     int block_byte_offset;
@@ -439,18 +382,25 @@ void parse_inode_table(__u8 inode_table_read[], int full_inodes[])
       char crea_time[80];
       __u32 c_time = k.i_ctime;
       timestamp_to_date(c_time, crea_time);
+
       
       printf("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d",i+1, filetype,mode, k.i_uid,
              k.i_gid, k.i_links_count, crea_time, mod_time, access_time,
              k.i_size, k.i_blocks);
-      
-      int j;    
-      /*0<j<12 give blocks, j==12 gives indirect, 
-        j==13 gives doubly indirect, j==14 gives triply indirect*/
-      for(j = 0; j < 15; j++)
+      if (filetype=='s')
       {
-        __u32 block = inode_table[i].i_block[j];
-        printf(",%d", block);
+        printf(",%d", inode_table[i].i_block[0]);
+      }
+      else
+      {
+          int j;    
+          /*0<j<12 give blocks, j==12 gives indirect, 
+            j==13 gives doubly indirect, j==14 gives triply indirect*/
+          for(j = 0; j < 15; j++)
+          {
+            __u32 block = inode_table[i].i_block[j];
+            printf(",%d", block);
+          }
       }
       printf("\n");
 
